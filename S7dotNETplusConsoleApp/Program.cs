@@ -15,8 +15,8 @@ namespace S7dotNETplusConsoleApp
         /// </summary>
         static bool bRcvd;
         static bool bSent;
-        static byte[] rcvData = { };    // data that is read from PLC memory
-        static byte[] sendData = {1, 1, 1, 1, 1, 1, 1, 1 };   // data that is sent to PLC memory
+        static byte[] rcvData = { 1, 2, 3, 4, 5, 6, 7, 8 };    // data that is read from PLC memory
+        static byte[] sendData = {123,2,3,4,5,6,7,8};   // data that is sent to PLC memory
 
         /// <summary>
         /// Method called by timer while setting off
@@ -31,36 +31,57 @@ namespace S7dotNETplusConsoleApp
             /// <param name="db"> address of the datatype, eg. if we reaed from DB45 then db = 45 </param>
             /// <param name="startByteAdr"> address of first byte that is to be read </param>
             /// <param name="count"> amount of read bytes </param>
-            rcvData = plc.ReadBytes(DataType.DataBlock, 30, 14, 8);     // read data and save them to a global variable "data" 
+            rcvData = plc.ReadBytes(DataType.DataBlock, 30, 8, 6);     // read data and save them to a global variable "data" 
             bRcvd = true;                                               // set a global boolean indicator to "true"
         }
 
         
         static void SendData(Plc plc)
         {
-            PrepareData();
-            ErrorCode _error = plc.WriteBytes(DataType.DataBlock, 30, 0, sendData);
-            if (_error == ErrorCode.NoError)
+            PrepareData();      // prepare sendData array
+
+            ErrorCode _error = plc.WriteBytes(DataType.DataBlock, 30, 0, sendData);     // send data
+            if (_error == ErrorCode.NoError)                                            // no error detected
             {
                 bSent = true;
             }
         }
 
+        /// <summary>
+        /// Function saving data to "sendData" array
+        /// </summary>
         static void PrepareData()
         {
-            sendData[0] = rcvData[0];
-            sendData[2] = (int)1;
-            sendData[4] = (int)5;
-            sendData[6] = (byte)'i';
-            sendData[7] = (byte)'i';
-            /*
-            sendData[8] = (byte)'i';
-            sendData[9] = (byte)'i';
-            sendData[10] = (byte)'i';
-            sendData[11] = (byte)'i';
-            sendData[12] = (byte)'i';
-            sendData[13] = (byte)'i';
-        */
+            // preparing boolean value
+            if (sendData[0] == 123) sendData[0] = 1;    // first cycle
+            else
+            {
+                // if bool is true, change to false and vice versa
+                if (sendData[0] == 1)
+                {
+                    sendData[0] = 0;
+                }
+                else
+                {
+                    sendData[0] = 1;
+                }
+            }
+
+            // saving integer values
+            short x = 30;
+            short y = 111;
+            // converting integers to byte[] arrays and reversing order (S7 uses different notation)
+            byte[] xB = BitConverter.GetBytes(x);
+            Array.Reverse(xB);
+            byte[] yB = BitConverter.GetBytes(y);
+            Array.Reverse(yB);
+
+            sendData[2] = xB[0];
+            sendData[3] = xB[1];
+            sendData[4] = yB[0];
+            sendData[5] = yB[1];
+            sendData[6] = (byte)'k';
+            
         }
 
 
@@ -94,8 +115,26 @@ namespace S7dotNETplusConsoleApp
                     {
                         DateTime time_st = DateTime.Now;                                  // get timestamp
                         Console.WriteLine(time_st + ": data rcvd, " + rcvData.Length);    // write message
-                        bRcvd = false;                                                    // reset boolean value
+                        
+                        // saving boolean data
+                        bool bit = BitConverter.ToBoolean(rcvData, 0);
+
+                        // saving integer values
+                        byte[] iData = { 1, 2 };
+                        iData[0] = rcvData[3];
+                        iData[1] = rcvData[2];
+                        short z = BitConverter.ToInt16(iData, 0);
+                        
+                        // saving char values
+                        char c = BitConverter.ToChar(rcvData, 4);
+
+                        // writing values to console
+                        Console.WriteLine($"{bit}, {z}, {c}");
+
+                        // reset boolean value
+                        bRcvd = false;                                                    
                     }
+
                     if (bSent)
                     {
                         Console.WriteLine("Data have been sent!");
